@@ -2,7 +2,7 @@
 # ping 192.168.11.34 
 # if we can't reach the host, reboot router
 # yay?
-
+# uses ping.py by george notaras, further modified by me
 import telnetlib
 import os
 import ping
@@ -13,15 +13,23 @@ import queue
 
 target_host = ''
 router_host = ''
-failed_packets = 0
 reboot_limit = 4
 wait_delay = 84
 
 user_name = ''
 password = ''
 
+def check_message(message):
+    if message == 'reboot':
+        reboot_router()
+        return 0
+    elif message == 'reset_failed':
+        print ("resetting failed packets to 0")
+        return 0
 
-def socket_loop():
+
+def socket_loop(messages):
+    failed_packets = 0
     while True:
         reached = ping_host(target_host)
         if reached:
@@ -34,7 +42,11 @@ def socket_loop():
         else:
             print ("current failed packets =", failed_packets, end="")
             print (", command? ")
-        time.sleep(wait_delay)
+        for i in range(wait_delay):
+            time.sleep(1)
+            if not messages.empty():
+                item = messages.get()
+                failed_packets = check_message(item)
 
 
 def ping_host(host):
@@ -45,7 +57,7 @@ def ping_host(host):
     print ("not reached, ", end="")
     return False
 
-
+# todo fix:
 def reboot_router():
     print ("rebooting ", router_host, "...")
     try:
@@ -62,10 +74,18 @@ def reboot_router():
         return
 
 def read_command(command):
-	if command == 'help':
-		print ('available commands:')
-		print ('help   - show help')
-		print ('reboot - reboot immediately')
+    global message_queue
+    if command == 'help':
+        print ('available commands:')
+        print ('help         - show help')
+        print ('reboot       - reboot immediately')
+        print ('reset_failed - resets failed packets to 0')
+    elif command == 'reboot':
+        message_queue.put(command)
+    elif command == 'reset_failed':
+        message_queue.put(command)
+
+
 
 if __name__ == "__main__":		
     if len(sys.argv) < 5:
@@ -77,11 +97,13 @@ if __name__ == "__main__":
     target_host = sys.argv[2]
     router_host = sys.argv[1]
 
-    connections = threading.Thread(target=socket_loop, name="connections")
+    message_queue = queue.Queue()
+
+    connections = threading.Thread(target=socket_loop, name="connections", args=[message_queue])
     connections.daemon = True
     connections.start()
 
-    message_queue = queue.Queue()
+
 
     while True:
         user_command = input()
