@@ -73,5 +73,5 @@ if __name__ == "__main__":
 	message_queue = queue.Queue()
 
 	while True:
-		user_command = raw_input()
+		user_command = input("?")
 	

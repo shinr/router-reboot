@@ -158,8 +158,9 @@ def send_one_ping(my_socket, dest_addr, ID):
     # Make a dummy heder with a 0 checksum.
     header = struct.pack("bbHHh", ICMP_ECHO_REQUEST, 0, my_checksum, ID, 1)
     bytesInDouble = struct.calcsize("d")
-    data = (192 - bytesInDouble) * "Q"
-    data = struct.pack("d", time.time()) + data
+    pack_data = (192 - bytesInDouble) * "Q"
+    data = struct.pack("d", time.time())
+    data = data + pack_data.encode('utf-8')
  
     # Calculate the checksum on the data and the dummy header.
     my_checksum = checksum(header + data)
@@ -172,10 +173,10 @@ def send_one_ping(my_socket, dest_addr, ID):
     packet = header + data
     try:
         my_socket.sendto(packet, (dest_addr, 1)) # Don't know about the 1
-    except socket.error, (errno, msg):
-        if errno == 101:
-            print msg 
-            print "continuing"
+    except socket.error as serr:
+        if serr.errno == 101:
+            print (serr.msg, end="")
+            print ("...continuing")
             return
         raise
  
@@ -187,14 +188,14 @@ def do_one(dest_addr, timeout):
     icmp = socket.getprotobyname("icmp")
     try:
         my_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, icmp)
-    except socket.error, (errno, msg):
-        if errno == 1:
+    except OSError as serr:
+        if serr.errno == 1:
             # Operation not permitted
-            msg = msg + (
+            serr.strerror = serr.strerror + (
                 " - Note that ICMP messages can only be sent from processes"
                 " running as root."
             )
-            raise socket.error(msg)
+            raise socket.error(serr.strerror)
         raise # raise the original error
  
     my_ID = os.getpid() & 0xFFFF
@@ -211,12 +212,12 @@ def verbose_ping(dest_addr, timeout = 2, count = 4):
     Send >count< ping to >dest_addr< with the given >timeout< and display
     the result.
     """
-    for i in xrange(count):
+    for i in range(count):
         #print "ping %s..." % dest_addr,
         try:
             delay  =  do_one(dest_addr, timeout)
-        except socket.gaierror, e:
-            print "failed. (socket error: '%s')" % e[1]
+        except socket.gaierror as sgaierr:
+            print ("failed. (socket error: '", sgaierr.e[1], "')")
             break
  
         if delay  ==  None:
