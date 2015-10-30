@@ -98,7 +98,7 @@ def checksum(source_string):
     countTo = (len(source_string)/2)*2
     count = 0
     while count<countTo:
-        thisVal = ord(source_string[count + 1])*256 + ord(source_string[count])
+        thisVal = source_string[count + 1]*256 + source_string[count]
         sum = sum + thisVal
         sum = sum & 0xffffffff # Necessary?
         count = count + 2
